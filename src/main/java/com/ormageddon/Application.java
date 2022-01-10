@@ -1,5 +1,6 @@
 package com.ormageddon;
 
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
@@ -14,36 +15,37 @@ import com.ormageddon.query.QueryBuilder;
 import com.ormageddon.util.Configuration;
 
 public class Application {
-	
+
 	public static void main(String[] args) {
-		Configuration config = new Configuration();
-		CrudOperations crudRepo = new CrudOperations(config);
-		QueryBuilder queryBuilder = new QueryBuilder();
-		
+		Configuration config = new Configuration(false);
+
 		Home house = new Home("123 fake street", new LinkedList<User>());
-		User testUser = new User(2, "mosizlak", "123abc", house);
-		User testUser2 = new User(3, "janeschmoe", "123abc", house);
+		Home house2 = new Home("114 cake street", new LinkedList<User>());
+		User testUser = new User("mosizlak", "123abc", house);
+		User testUser2 = new User("janeschmoe", "123abc", house);
+		User testUser3 = new User("mody", "pass", house2);
+		User testUser4 = new User("brody", "pass", house2);
+		User testUser5 = new User("cody", "pass", null);
 		
+
 		house.getInhabitants().add(testUser);
 		house.getInhabitants().add(testUser2);
+		house2.getInhabitants().add(testUser3);
+		house2.getInhabitants().add(testUser4);
 		
-//		MetaModel<Class<?>> metaModel = MetaModel.of(User.class);
-//		System.out.println(metaModel.getColumn("pwd"));
 		
-//		System.out.println(MetaModel.of(User.class).getColumnNameList());
-		System.out.println(queryBuilder.createTableIfNotExists(MetaModel.of(User.class)));
-//		System.out.println(queryBuilder.createTableIfNotExists(MetaModel.of(Home.class)));
-//		System.out.println(queryBuilder.saveQuery(MetaModel.of(User.class)));
-//		System.out.println(queryBuilder.updateQuery(MetaModel.of(User.class)));
-//		System.out.println(queryBuilder.deleteQuery(MetaModel.of(User.class)));
-		
-//		crudRepo.update(testUser,"username      ,     pwd");
-//		System.out.println(crudRepo.findAll(User.class));
-//		System.out.println(crudRepo.remove(testUser2));
-		
-		System.out.println(crudRepo.findBy(User.class,"id,username","2,mosizlak"));
+		config.addObjectToDB(testUser);
+		config.addObjectToDB(testUser2);
+		config.createSavePoint("new");
+		config.addObjectToDB(testUser3);
+		config.rollBackToSavePoint("new");
+		config.addObjectToDB(testUser4);
+		config.addObjectToDB(testUser5);
 		
 		
 		
+
+		System.out.println(config.getListObjectFromDB(User.class, "username", "mody"));
+		System.out.println(config.getListObjectFromDB(User.class));
 	}
 }

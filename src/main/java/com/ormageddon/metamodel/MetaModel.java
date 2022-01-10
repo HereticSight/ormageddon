@@ -148,6 +148,11 @@ public class MetaModel<T> {
 		
 		return columns;
 	}
+	public List<String> getColumnNameListNoFk() {
+		List<String> columns = getColumns().stream().map(c-> c.getColumnName()).collect(Collectors.toList());
+		
+		return columns;
+	}
 	
 	public List<String> getColumnNameListWithId() {
 		List<String> columns = new ArrayList<String>();
@@ -156,6 +161,10 @@ public class MetaModel<T> {
 		columns.addAll(getForeignKeys().stream().map(f-> f.getColumnName()).collect(Collectors.toList()));
 		
 		return columns;
+	}
+	
+	public Class<?> getClazz() {
+		return this.clazz;
 	}
 	
 	public String getSimpleClassName() {

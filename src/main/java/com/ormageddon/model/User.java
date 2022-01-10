@@ -19,7 +19,7 @@ public class User {
 	@Column(name="pwd", notNull=true)
 	private String password;
 	
-	@JoinColumn(references=Home.class)
+	@JoinColumn(name="home_id", references=Home.class)
 	private Home home;
 	
 	public User() {

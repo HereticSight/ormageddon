@@ -18,6 +18,7 @@ public class ForeignKeyField {
 					  						getName() + "is not annotated with @JoinColumn");
 		}
 		this.field = field;
+		setReference();
 	}
 	
 	public Field getField() {
@@ -45,8 +46,12 @@ public class ForeignKeyField {
 	}
 	
 	// get reference from annotation
-	public MetaModel<Class<?>> getReference() {
+	public MetaModel<Class<?>> setReference() {
 		reference = MetaModel.of(field.getAnnotation(JoinColumn.class).references());
+		return reference;
+	}
+	
+	public MetaModel<Class<?>> getReference() {
 		return reference;
 	}
 

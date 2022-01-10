@@ -47,32 +47,39 @@ private static HashMap<String, String> dataTypes = new HashMap<String,String>();
 			// id SERIAL PRIMARY KEY,
 			PrimaryKeyField pk = metaModel.getPrimaryKey();
 			newTableQuery += pk.getColumnName() + " SERIAL PRIMARY KEY";
-			
-			for (ColumnField column : metaModel.getColumns()) {
-				newTableQuery += ",\r\n";
-				// column DataTypeE NOT NULL UNIQUE,
-				newTableQuery += column.getColumnName() + " " + dataType(column.getField());
-				if (column.getField().getAnnotation(Column.class) != null && column.getField().getAnnotation(Column.class).notNull()) {
-					newTableQuery += " NOT NULL";
-				}
-				if (column.getField().getAnnotation(Column.class) != null && column.getField().getAnnotation(Column.class).unique()) {
-					newTableQuery += " UNIQUE";
+			if (metaModel.getColumns() != null && !metaModel.getColumns().isEmpty()) {
+
+				for (ColumnField column : metaModel.getColumns()) {
+					newTableQuery += ",\r\n";
+					// column DataTypeE NOT NULL UNIQUE,
+					newTableQuery += column.getColumnName() + " " + dataType(column.getField());
+					if (column.getField().getAnnotation(Column.class) != null
+							&& column.getField().getAnnotation(Column.class).notNull()) {
+						newTableQuery += " NOT NULL";
+					}
+					if (column.getField().getAnnotation(Column.class) != null
+							&& column.getField().getAnnotation(Column.class).unique()) {
+						newTableQuery += " UNIQUE";
+					}
 				}
 			}
 			if (metaModel.getForeignKeys() != null && !metaModel.getForeignKeys().isEmpty()) {
 
 				for (ForeignKeyField fk : metaModel.getForeignKeys()) {
-					newTableQuery += ",\r\n";
-					// fk_column DataType REFERENCES 
-					newTableQuery += fk.getColumnName() + " INTEGER REFERENCES ";
-					// tableName, columnName
-					newTableQuery += fk.getReference().getTableName() + "(" + fk.getReference().getPrimaryKey().getColumnName() +")";
-					newTableQuery += " ON UPDATE CASCADE ON DELETE CASCADE";
+					if (fk.getReference() != null) {
+						newTableQuery += ",\r\n";
+						// fk_column DataType REFERENCES
+						newTableQuery += fk.getColumnName() + " INTEGER REFERENCES ";
+						// tableName, columnName
+						newTableQuery += fk.getReference().getTableName() + "("
+								+ fk.getReference().getPrimaryKey().getColumnName() + ")";
+						newTableQuery += " ON UPDATE CASCADE ON DELETE CASCADE";
+					}
 				}
 			}
-		
-		newTableQuery += "\r\n);";
-		
+
+			newTableQuery += "\r\n);";
+
 		}
 		return newTableQuery;
 	}
@@ -82,8 +89,8 @@ private static HashMap<String, String> dataTypes = new HashMap<String,String>();
 		// INSERT INTO table 
 		sql += metaModel.getTableName() + " (";
 		//(column 1, column 2, column 3, ...)
-		List<String> columns = metaModel.getColumnNameList();
-		sql += columns.stream().collect(Collectors.joining(", ")) + ") VALUES (" + columns.stream().map(c-> "?").collect(Collectors.joining(", ")) + ") ON CONFLICT DO NOTHING";
+		List<String> columns = metaModel.getColumnNameListNoFk();
+		sql += columns.stream().collect(Collectors.joining(", ")) + ") VALUES \r\n(";
 		
 		return sql;
 	}

@@ -11,7 +11,7 @@ public interface OrmRepository<T> {
 	
 //	Optional<List<Object>> findBy(Class<?> clazz, String columns, String conditions, String operators);
 
-	int save(T model);
+	boolean save(T model);
 	
 	boolean remove(T model);
 	

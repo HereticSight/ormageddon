@@ -1,6 +1,5 @@
 package com.ormageddon.data;
 
-
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
@@ -15,59 +14,64 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.log4j.Logger;
+
 import com.ormageddon.annotations.Column;
 import com.ormageddon.annotations.Id;
 import com.ormageddon.annotations.JoinColumn;
+import com.ormageddon.metamodel.ForeignKeyField;
 import com.ormageddon.metamodel.MetaModel;
 import com.ormageddon.query.QueryBuilder;
-import com.ormageddon.util.Configuration;
+import com.ormageddon.query.Transactions;
 
 public class CrudOperations implements OrmRepository<Object> {
 	
-	private Configuration config;
+	private static Logger logger = Logger.getLogger(CrudOperations.class);
+	private static LinkedList<String> transaction;
+	private Connection conn;
+	private Transactions tcl = new Transactions();;
 	private static QueryBuilder qBuild = new QueryBuilder();
-	
-	public CrudOperations(Configuration config) {
-		this.config = config;
+	private boolean autoCommit;
+
+	public CrudOperations(Connection conn, boolean autoCommit) {
+		this.conn = conn;
+		this.autoCommit = autoCommit;
 	}
 	
-//	/**
-//
-//	Class<T> clazz - a list of object types you want to be fetched
-//	ResultSet resultSet - pointer to your retrieved results 
-//
-//	*/
-//
-//	    List<Field> fields = Arrays.asList(clazz.getDeclaredFields());
-//	    for(Field field: fields) {
-//	        field.setAccessible(true);
-//	    }
-//
-//	    List<T> list = new ArrayList<>(); 
-//    while(resultSet.next()) {
-//
-//        T dto = clazz.getConstructor().newInstance();
-//
-//        for(Field field: fields) {
-//            Col col = field.getAnnotation(Col.class);
-//            if(col!=null) {
-//                String name = col.name();
-//                try{
-//                    String value = resultSet.getString(name);
-//                    field.set(dto, field.getType().getConstructor(String.class).newInstance(value));
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                }
-//            }
-//        }
-//
-//        list.add(dto);
-//
-//    }
+	public boolean getAutoCommit() {
+		return this.autoCommit;
+	}
 	
+	public boolean setAutoCommit(boolean autoCommit) {
+		return this.autoCommit = autoCommit;
+	}
+
+	public boolean persistMetaModel(MetaModel<Class<?>> metaModel) {
+		if (metaModel != null) {			
+			if (metaModel.getForeignKeys() != null && !metaModel.getForeignKeys().isEmpty()) {
+				for (ForeignKeyField fk : metaModel.getForeignKeys()) {
+					persistMetaModel(fk.getReference());
+				}
+			}
+			String sql = qBuild.createTableIfNotExists(metaModel);
+			try {
+				Statement stmt = conn.createStatement();
+				stmt.executeUpdate(sql);
+				logger.info("Created or (skipped creation if it already exists) of " + metaModel.getSimpleClassName() + " table.");
+				return true;
+			} catch (SQLException e) {
+				e.printStackTrace();
+				logger.error("SQL Exception thrown. Table creation failed.");
+				return false;
+			}
+		}
+		return false;
+
+	}
+
 	@Override
 	public Optional<List<Object>> findAll(Class<?> clazz) {
-		try (Connection conn = config.getConnection()) {
+		try {
 			List<Object> objects = new LinkedList<Object>();
 			List<Field> fields = Arrays.asList(clazz.getDeclaredFields());
 			for (Field field : fields) {
@@ -75,11 +79,11 @@ public class CrudOperations implements OrmRepository<Object> {
 			}
 			List<Object> list = new ArrayList<>();
 			Statement stmt = conn.createStatement();
-			MetaModel<Class<?>> metaModel = config.getMetaModel(clazz);
+			MetaModel<Class<?>> metaModel = MetaModel.of(clazz);
 			String sql = qBuild.findAllQuery(metaModel);
-			
+
 			ResultSet rs;
-			
+
 			if ((rs = stmt.executeQuery(sql)) != null) {
 				ResultSetMetaData rsmd = rs.getMetaData();
 				int columnCount = rsmd.getColumnCount();
@@ -91,7 +95,7 @@ public class CrudOperations implements OrmRepository<Object> {
 						Id id = field.getAnnotation(Id.class);
 						JoinColumn fk = field.getAnnotation(JoinColumn.class);
 						String name;
-						
+
 						if (id != null) {
 							name = id.name();
 							if (rs.getObject(name) != null) {
@@ -99,6 +103,7 @@ public class CrudOperations implements OrmRepository<Object> {
 								field.set(newObject, value);
 							}
 						}
+
 						if (col != null) {
 							name = col.name();
 							if (rs.getObject(name) != null) {
@@ -106,6 +111,7 @@ public class CrudOperations implements OrmRepository<Object> {
 								field.set(newObject, value);
 							}
 						}
+
 //						if (fk != null) {
 //							name = fk.name();
 //							if (rs.getObject(name) != null) {
@@ -120,9 +126,8 @@ public class CrudOperations implements OrmRepository<Object> {
 				}
 
 			}
-			config.addAllFromDbToCache(clazz);
 			return Optional.of(list);
-			
+
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -152,11 +157,12 @@ public class CrudOperations implements OrmRepository<Object> {
 			e.printStackTrace();
 			return null;
 		}
-		
+
 	}
+
 	@Override
 	public Optional<List<Object>> findBy(Class<?> clazz, String columns, String conditions) {
-		try (Connection conn = config.getConnection()) {
+		try {
 			List<String> cols = Arrays.asList(columns.split("\\s*,\\s*"));
 			List<String> cons = Arrays.asList(conditions.split("\\s*,\\s*"));
 			List<Field> fields = Arrays.asList(clazz.getDeclaredFields());
@@ -165,27 +171,27 @@ public class CrudOperations implements OrmRepository<Object> {
 			}
 			List<Object> list = new ArrayList<>();
 			Statement stmt = conn.createStatement();
-			MetaModel<Class<?>> metaModel = config.getMetaModel(clazz);
+			MetaModel<Class<?>> metaModel = MetaModel.of(clazz);
 			String sql = qBuild.findByQuery(metaModel);
 			List<String> query = new ArrayList<String>();
-			for (int i = 0; i < cols.size(); i++ ) {
+			for (int i = 0; i < cols.size(); i++) {
 				if (cols.get(i) == "id") {
 					query.add(cols.get(i) + " = " + cons.get(i));
-				} else if (metaModel.getColumn(cols.get(i)) != null && metaModel.getColumn(cols.get(i)).getType() == String.class) {
+				} else if (metaModel.getColumn(cols.get(i)) != null
+						&& metaModel.getColumn(cols.get(i)).getType() == String.class) {
 					query.add(cols.get(i) + " = '" + cons.get(i) + "'");
 				} else {
-					query.add(cols.get(i) + " = " + cons.get(i));				
+					query.add(cols.get(i) + " = " + cons.get(i));
 				}
 			}
 			sql += query.stream().collect(Collectors.joining(" AND ")) + (";");
-			System.out.println(sql);
-			
+
 			ResultSet rs;
-			
+
 			if ((rs = stmt.executeQuery(sql)) != null) {
 				ResultSetMetaData rsmd = rs.getMetaData();
 				int columnCount = rsmd.getColumnCount();
-				
+
 				while (rs.next()) {
 					Object newObject = clazz.getConstructor().newInstance();
 					for (Field field : fields) {
@@ -193,7 +199,7 @@ public class CrudOperations implements OrmRepository<Object> {
 						Id id = field.getAnnotation(Id.class);
 						JoinColumn fk = field.getAnnotation(JoinColumn.class);
 						String name;
-						
+
 						if (id != null) {
 							name = id.name();
 							if (rs.getObject(name) != null) {
@@ -216,14 +222,14 @@ public class CrudOperations implements OrmRepository<Object> {
 //							}
 //						}
 					}
-					
+
 					list.add(newObject);
-					
+
 				}
-				
+
 			}
 			return Optional.of(list);
-			
+
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -253,69 +259,60 @@ public class CrudOperations implements OrmRepository<Object> {
 			e.printStackTrace();
 			return null;
 		}
-		
-	}
 
-
-//	@Override
-//	public Optional<Object> findBy() {
-//		// TODO Auto-generated method stub
-//		return null;
-//	}
-
-	@Override
-	public int save(Object model) {
-		
-		return 0;
 	}
 
 	@Override
 	public boolean remove(Object model) {
-		try (Connection conn = config.getConnection()) {
-			MetaModel<Class<?>> metaModel = config.getMetaModel(model.getClass());
+		try {
+			MetaModel<Class<?>> metaModel = MetaModel.of(model.getClass());
 			String sql = qBuild.deleteQuery(metaModel);
 			sql += metaModel.getPrimaryKey().getColumnName() + " = " + metaModel.getPrimaryKey().getValue(model) + ";";
-			
-			Statement stmt = conn.createStatement();
-			stmt.executeUpdate(sql);
-			return true;
-			
+
+			if (!autoCommit) {
+				transaction.add(sql);
+				logger.info("Delete Query for " + metaModel.getSimpleClassName() + " added to the transaction." );
+				return true;
+			} else {
+
+				Statement stmt = conn.createStatement();
+				stmt.executeUpdate(sql);
+				return true;
+
+			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 			return false;
 		} catch (IllegalArgumentException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return false;
 		} catch (IllegalAccessException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 			return false;
 		}
-		
+
 	}
 
-	@Override
-	public boolean update(Object model, String columns) {
-		MetaModel<Class<?>> metaModel = config.getMetaModel(model.getClass());
-		String[] desiredColumns = columns.split("\\s*,\\s*");
-		String sql = qBuild.updateQuery(metaModel);
+	public boolean save(Object model) {
+		MetaModel<Class<?>> metaModel = MetaModel.of(model.getClass());
+		String sql = qBuild.saveQuery(metaModel);
 		List<String> sqlUpdate = new ArrayList<String>();
-		for ( String string : desiredColumns) {
+		for (String string : metaModel.getColumnNameListNoFk()) {
 			try {
 				if (metaModel.getColumn(string) != null) {
-					if (metaModel.getColumn(string).getType().equals(String.class)) {
-						sqlUpdate.add(string + " = '" + metaModel.getColumn(string).getValue(model) + "'");
+					if (metaModel.getColumn(string) != null
+							&& metaModel.getColumn(string).getType().equals(String.class)) {
+						sqlUpdate.add("'" + metaModel.getColumn(string).getValue(model) + "'");
 					} else {
-						sqlUpdate.add(string + " = " + metaModel.getColumn(string).getValue(model));					
+						sqlUpdate.add((String) metaModel.getColumn(string).getValue(model));
 					}
-				} 
+				}
 				if (metaModel.getForeignKey(string) != null) {
-					if (metaModel.getColumn(string).getType().equals(String.class)) {
-						sqlUpdate.add(string + " = " + metaModel.getColumn(string).getValue(model));	
+					if (metaModel.getColumn(string) != null) {
+						sqlUpdate.add((String) metaModel.getColumn(string).getValue(model));
 					}
-				} 
-				
+				}
+
 			} catch (IllegalArgumentException e) {
 				e.printStackTrace();
 				return false;
@@ -324,30 +321,141 @@ public class CrudOperations implements OrmRepository<Object> {
 				return false;
 			}
 		}
+
+		sql += sqlUpdate.stream().collect(Collectors.joining(" , ")) + ") ON CONFLICT DO NOTHING;";
+		if (!autoCommit) {
+			transaction.add(sql);
+			logger.info("Insert Query for " + model.getClass().getSimpleName() + "added to the transaction");
+			return true;
+		} else {
+			
+			try {
+				Statement stmt = conn.createStatement();
+				stmt.executeUpdate(sql);
+				return true;
+				
+			} catch (SQLException e) {
+				e.printStackTrace();
+				return false;
+			}
+			
+		}
+
+	}
+
+	public boolean update(Object model, String columns) {
+		MetaModel<Class<?>> metaModel = MetaModel.of(model.getClass());
+		String[] desiredColumns = columns.split("\\s*,\\s*");
+		String sql = qBuild.updateQuery(metaModel);
 		
-		sql += sqlUpdate.stream().collect(Collectors.joining(",\r\n")) + " \r\n";
+			List<String> sqlUpdate = new ArrayList<String>();
+			for (String string : desiredColumns) {
+				try {
+					if (metaModel.getColumn(string) != null) {
+						if (metaModel.getColumn(string).getType().equals(String.class)) {
+							sqlUpdate.add(string + " = '" + metaModel.getColumn(string).getValue(model) + "'");
+						} else {
+							sqlUpdate.add(string + " = " + metaModel.getColumn(string).getValue(model));
+						}
+					}
+					if (metaModel.getForeignKey(string) != null) {
+						if (metaModel.getColumn(string).getType().equals(String.class)) {
+							sqlUpdate.add(string + " = " + metaModel.getColumn(string).getValue(model));
+						}
+					}
+					
+				} catch (IllegalArgumentException e) {
+					e.printStackTrace();
+					return false;
+				} catch (IllegalAccessException e) {
+					e.printStackTrace();
+					return false;
+				}
+			}
+			
+			sql += sqlUpdate.stream().collect(Collectors.joining(",\r\n")) + " \r\n";
+			
+			try {
+				sql += "WHERE " + metaModel.getPrimaryKey().getColumnName() + " = "
+						+ metaModel.getPrimaryKey().getValue(model);
+				sql += ";";
+				System.out.println(sql);
+			} catch (IllegalArgumentException e1) {
+				e1.printStackTrace();
+				return false;
+			} catch (IllegalAccessException e1) {
+				e1.printStackTrace();
+				return false;
+			}
+		if (!autoCommit){
+			transaction.add(sql);
+			logger.info("Update Query for " + model.getClass().getSimpleName() + " added to the transaction");
+			return true;
+		} else {
+			
+			try {
+				Statement stmt = conn.createStatement();
+				stmt.executeUpdate(sql);
+				return true;
+				
+			} catch (SQLException e) {
+				e.printStackTrace();
+				return false;
+			}
+		}
+
+
+	}
+
+	public void beginTransaction() {
+		transaction = new LinkedList<String>();
+		transaction.add("BEGIN;");
+	}
+
+	public void rollback() {
+		transaction.clear();
+	};
+
+	public void rollback(String savePoint) {
+		if (transaction.contains(savePoint)) {
+			if (transaction.isEmpty())
+				while (transaction.getLast() != savePoint) {
+					transaction.removeLast();
+				}
+			releaseSavePoint(savePoint);
+		}
+	}
+
+	public void setSavePoint(String savePoint) {
+		if (!transaction.contains(savePoint)) {
+			transaction.add("SAVEPOINT " + savePoint);
+		} else {
+			logger.warn("SavePoint " + savePoint + " already exists. Please set a different one.");
+		}
+	}
+
+	public void releaseSavePoint(String savePoint) {
+		if(transaction.contains(savePoint)) {
+			transaction.remove(savePoint);			
+		} else {
+			logger.warn("SavePoint " + savePoint + " does not exist");
+		}
+	}
+
+	public void setCommit() {
+		transaction.add("COMMIT;");
+	}
+	
+	public void sendCommit() {
+		setCommit();
+		String sql = transaction.stream().collect(Collectors.joining("\r\n"));
 		
 		try {
-			sql += "WHERE " + metaModel.getPrimaryKey().getColumnName() + " = " + metaModel.getPrimaryKey().getValue(model);
-			sql += ";";
-			System.out.println(sql);
-		} catch (IllegalArgumentException e1) {
-			e1.printStackTrace();
-			return false;
-		} catch (IllegalAccessException e1) {
-			e1.printStackTrace();
-			return false;
-		}
-		
-		
-		try (Connection conn = config.getConnection()) {
 			Statement stmt = conn.createStatement();
 			stmt.executeUpdate(sql);
-			return true;
-			
+
 		} catch (SQLException e) {
 			e.printStackTrace();
-			return false;
 		}
 		
 	}
