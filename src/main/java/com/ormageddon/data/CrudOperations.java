@@ -22,16 +22,14 @@ import com.ormageddon.annotations.JoinColumn;
 import com.ormageddon.metamodel.ForeignKeyField;
 import com.ormageddon.metamodel.MetaModel;
 import com.ormageddon.query.QueryBuilder;
-import com.ormageddon.query.Transactions;
 
 public class CrudOperations implements OrmRepository<Object> {
 	
 	private static Logger logger = Logger.getLogger(CrudOperations.class);
-	private static LinkedList<String> transaction;
+	private static LinkedList<String> transaction = new LinkedList<String>();
 	private Connection conn;
-	private Transactions tcl = new Transactions();;
 	private static QueryBuilder qBuild = new QueryBuilder();
-	private boolean autoCommit;
+	private boolean autoCommit = true;
 
 	public CrudOperations(Connection conn, boolean autoCommit) {
 		this.conn = conn;
@@ -325,7 +323,7 @@ public class CrudOperations implements OrmRepository<Object> {
 		sql += sqlUpdate.stream().collect(Collectors.joining(" , ")) + ") ON CONFLICT DO NOTHING;";
 		if (!autoCommit) {
 			transaction.add(sql);
-			logger.info("Insert Query for " + model.getClass().getSimpleName() + "added to the transaction");
+			logger.info("Insert Query for " + model.getClass().getSimpleName() + " added to the transaction");
 			return true;
 		} else {
 			
@@ -417,26 +415,28 @@ public class CrudOperations implements OrmRepository<Object> {
 	};
 
 	public void rollback(String savePoint) {
-		if (transaction.contains(savePoint)) {
-			if (transaction.isEmpty())
-				while (transaction.getLast() != savePoint) {
+		if (transaction.contains("SAVEPOINT " + savePoint + ";")) {
+				while (!transaction.getLast().equals("SAVEPOINT " + savePoint + ";")) {
+					System.out.println(transaction.getLast());
 					transaction.removeLast();
 				}
-			releaseSavePoint(savePoint);
+			logger.info("Rolled back to SavePoint: " + savePoint);
 		}
 	}
 
 	public void setSavePoint(String savePoint) {
-		if (!transaction.contains(savePoint)) {
-			transaction.add("SAVEPOINT " + savePoint);
+		if (!transaction.contains("SAVEPOINT " + savePoint + ";")) {
+			transaction.add("SAVEPOINT " + savePoint + ";");
+			logger.info("SavePoint has been set as " + savePoint);
 		} else {
 			logger.warn("SavePoint " + savePoint + " already exists. Please set a different one.");
 		}
 	}
 
 	public void releaseSavePoint(String savePoint) {
-		if(transaction.contains(savePoint)) {
-			transaction.remove(savePoint);			
+		if(transaction.contains("SAVEPOINT " + savePoint + ";")) {
+			transaction.remove("SAVEPOINT " + savePoint + ";");
+			logger.info("SavePoint" + savePoint + " has been released");
 		} else {
 			logger.warn("SavePoint " + savePoint + " does not exist");
 		}
@@ -449,13 +449,13 @@ public class CrudOperations implements OrmRepository<Object> {
 	public void sendCommit() {
 		setCommit();
 		String sql = transaction.stream().collect(Collectors.joining("\r\n"));
-		
 		try {
 			Statement stmt = conn.createStatement();
 			stmt.executeUpdate(sql);
-
+			logger.info("Transaction has been committed to the database");
 		} catch (SQLException e) {
 			e.printStackTrace();
+			logger.error("SQL error has been thrown. Unable to perform transaction.");
 		}
 		
 	}

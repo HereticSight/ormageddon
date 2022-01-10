@@ -1,3 +1,4 @@
+int,INTEGER
 integer,INTEGER
 long,BIGINT
 short,INTEGER

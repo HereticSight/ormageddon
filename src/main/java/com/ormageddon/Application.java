@@ -1,17 +1,11 @@
 package com.ormageddon;
 
-import java.sql.SQLException;
-import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.Map;
-import java.util.stream.Collectors;
+import java.util.List;
+import java.util.Optional;
 
-import com.ormageddon.data.CrudOperations;
-import com.ormageddon.data.OrmRepository;
-import com.ormageddon.metamodel.MetaModel;
 import com.ormageddon.model.Home;
 import com.ormageddon.model.User;
-import com.ormageddon.query.QueryBuilder;
 import com.ormageddon.util.Configuration;
 
 public class Application {
@@ -40,12 +34,23 @@ public class Application {
 		config.addObjectToDB(testUser3);
 		config.rollBackToSavePoint("new");
 		config.addObjectToDB(testUser4);
+		config.commitTransaction();
+		
+		
+//		testUser4.setPassword("password");
+		
+		config.updateObjectInDB(testUser4, "pwd");
 		config.addObjectToDB(testUser5);
+		config.rollBackTransaction();
+		config.commitTransaction();
 		
 		
 		
-
-		System.out.println(config.getListObjectFromDB(User.class, "username", "mody"));
+		
+		
 		System.out.println(config.getListObjectFromDB(User.class));
+		System.out.println(config.getListObjectFromDB(User.class));
+		System.out.println(config.getListObjectFromDB(testUser4.getClass(), "username", "brody"));
+		System.out.println(config.getListObjectFromDB(User.class, "username", "mody"));
 	}
 }

@@ -39,8 +39,8 @@ public class Configuration {
 	private static List<MetaModel<Class<?>>> metaModelList;
 	private static String PACKAGE_NAME;
 	private static Properties props = new Properties();
-	private boolean autoCreateTables;
-	private boolean autoCommit;
+	private boolean autoCreateTables = true;
+	private boolean autoCommit = true;
 	
 	static {
 		try {
@@ -57,12 +57,12 @@ public class Configuration {
 	}
 	
 	public Configuration() {
-		this.autoCommit = true;
 		cache = new HashMap<Class<?>, HashSet<Object>>();
 		addAllMetaModels();
 		try {
 			conn = getConnection();
 			crudOps = new CrudOperations(conn, autoCommit);
+			this.autoCommit = true;
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -70,12 +70,12 @@ public class Configuration {
 		
 	}	
 	public Configuration(boolean autoCommit) {
-		this.autoCommit = autoCommit;
 		cache = new HashMap<Class<?>, HashSet<Object>>();
 		addAllMetaModels();
 		try {
 			conn = getConnection();
 			crudOps = new CrudOperations(conn, autoCommit);
+			setAutoCommit(autoCommit);
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -89,6 +89,12 @@ public class Configuration {
 			crudOps.beginTransaction();
 		}
 		return this.autoCommit = autoCommit;
+	}
+	
+	public boolean disableAutoCommit() {
+		crudOps.setAutoCommit(false);
+		crudOps.beginTransaction();
+		return this.autoCommit = false;
 	}
 	
 	public boolean getAutoCommit() {
@@ -148,7 +154,7 @@ public class Configuration {
 		return cache;
 	}
 
-	public boolean UpdateObjectInDB(final Object obj,final String update_columns) {
+	public boolean updateObjectInDB(final Object obj,final String update_columns) {
 		
 		return crudOps.update(obj, update_columns);
 	}
@@ -207,6 +213,14 @@ public class Configuration {
 			crudOps.rollback(savePoint);
 		} else {
 			logger.warn("Cannot perform Rollback if AutoCommit is set to true.");
+		}
+	}
+	
+	public void releaseSavePoint(String savePoint) {
+		if (!autoCommit) {
+			crudOps.releaseSavePoint(savePoint);
+		} else {
+			logger.warn("There are no SavePoints to release if AutoCommit is set to true.");
 		}
 	}
 	
