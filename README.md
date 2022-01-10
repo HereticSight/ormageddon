@@ -8,7 +8,6 @@ A java based ORM for connecting to and from an SQL database without the need for
 * PostgreSQL - version 42.2.12  
 * Java - version 8.0  
 * Apache commons - version 2.1  
-* JUnit
 
 ## Features
 
