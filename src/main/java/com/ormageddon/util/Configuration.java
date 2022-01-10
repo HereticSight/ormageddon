@@ -171,8 +171,10 @@ public class Configuration {
 	
 	public Optional<List<Object>> getListObjectFromDB(final Class<?> clazz) {
 		if (cache.get(clazz) != null && !cache.get(clazz).isEmpty()) {
+			logger.info("Retrieved " + clazz.getSimpleName() + " list from cache");
 			return Optional.of(cache.get(clazz).stream().collect(Collectors.toList()));
 		} else {
+			logger.info("Retrieved " + clazz.getSimpleName() + " list from database");
 			return crudOps.findAll(clazz);
 		}
 	}
@@ -197,7 +199,7 @@ public class Configuration {
 	}
 	
 	public void addAllFromDbToCache(Class<?> clazz) {
-		List<Object> list = !getListObjectFromDB(clazz).isPresent() ? getListObjectFromDB(clazz).get() : null;
+		List<Object> list = getListObjectFromDB(clazz).isPresent() ? getListObjectFromDB(clazz).get() : null;
 		cache.put(clazz, (HashSet<Object>) list.stream().collect(Collectors.toSet()));
 	}
 	
@@ -237,6 +239,7 @@ public class Configuration {
 	public void commitTransaction() {
 		if (!autoCommit) {
 			crudOps.sendCommit();
+			crudOps.beginTransaction();
 		} else {
 			logger.warn("AutoCommit is set to true. Transactions are automatically committed as you perform database actions");
 		}

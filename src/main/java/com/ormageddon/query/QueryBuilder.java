@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
+import org.apache.log4j.Logger;
+
 import com.ormageddon.annotations.Column;
 import com.ormageddon.metamodel.ColumnField;
 import com.ormageddon.metamodel.ForeignKeyField;
@@ -17,7 +19,8 @@ import com.ormageddon.metamodel.PrimaryKeyField;
 public class QueryBuilder {
 	
 private static HashMap<String, String> dataTypes = new HashMap<String,String>();
-	
+private static Logger logger = Logger.getLogger(QueryBuilder.class);
+
 	static {
 		
 		Scanner scan;
@@ -28,7 +31,7 @@ private static HashMap<String, String> dataTypes = new HashMap<String,String>();
 				dataTypes.put(dataMapping[0],dataMapping[1]);
 			}
 		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
+			logger.error("File was not found.");
 			e.printStackTrace();
 		}
 		

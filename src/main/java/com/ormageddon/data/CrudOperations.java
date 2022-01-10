@@ -124,6 +124,7 @@ public class CrudOperations implements OrmRepository<Object> {
 				}
 
 			}
+			logger.info("Successfully retrieved a list of all of Class: " + clazz.getSimpleName());
 			return Optional.of(list);
 
 		} catch (SQLException e) {
@@ -287,12 +288,12 @@ public class CrudOperations implements OrmRepository<Object> {
 							&& metaModel.getColumn(string).getType().equals(String.class)) {
 						sqlUpdate.add("'" + metaModel.getColumn(string).getValue(model) + "'");
 					} else {
-						sqlUpdate.add((String) metaModel.getColumn(string).getValue(model));
+						sqlUpdate.add(metaModel.getColumn(string).getValue(model).toString());
 					}
 				}
 				if (metaModel.getForeignKey(string) != null) {
 					if (metaModel.getColumn(string) != null) {
-						sqlUpdate.add((String) metaModel.getColumn(string).getValue(model));
+						sqlUpdate.add(metaModel.getColumn(string).getValue(model).toString());
 					}
 				}
 
@@ -362,7 +363,6 @@ public class CrudOperations implements OrmRepository<Object> {
 				sql += "WHERE " + metaModel.getPrimaryKey().getColumnName() + " = "
 						+ metaModel.getPrimaryKey().getValue(model);
 				sql += ";";
-				System.out.println(sql);
 			} catch (IllegalArgumentException e1) {
 				e1.printStackTrace();
 				return false;
@@ -402,7 +402,6 @@ public class CrudOperations implements OrmRepository<Object> {
 	public void rollback(String savePoint) {
 		if (transaction.contains("SAVEPOINT " + savePoint + ";")) {
 				while (!transaction.getLast().equals("SAVEPOINT " + savePoint + ";")) {
-					System.out.println(transaction.getLast());
 					transaction.removeLast();
 				}
 			logger.info("Rolled back to SavePoint: " + savePoint);

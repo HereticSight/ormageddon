@@ -65,6 +65,14 @@ public class Home {
 	public void setAddress(String address) {
 		this.address = address;
 	}
+	
+	public boolean isOwned() {
+		return this.owned;
+	}
+	
+	public void setOwned(boolean owned) {
+		this.owned = owned;
+	}
 
 	public List<User> getInhabitants() {
 		return inhabitants;
