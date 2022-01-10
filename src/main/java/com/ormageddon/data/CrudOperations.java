@@ -18,7 +18,6 @@ import org.apache.log4j.Logger;
 
 import com.ormageddon.annotations.Column;
 import com.ormageddon.annotations.Id;
-import com.ormageddon.annotations.JoinColumn;
 import com.ormageddon.metamodel.ForeignKeyField;
 import com.ormageddon.metamodel.MetaModel;
 import com.ormageddon.query.QueryBuilder;
@@ -33,6 +32,7 @@ public class CrudOperations implements OrmRepository<Object> {
 
 	public CrudOperations(Connection conn, boolean autoCommit) {
 		this.conn = conn;
+		
 		this.autoCommit = autoCommit;
 	}
 	
@@ -41,7 +41,8 @@ public class CrudOperations implements OrmRepository<Object> {
 	}
 	
 	public boolean setAutoCommit(boolean autoCommit) {
-		return this.autoCommit = autoCommit;
+		this.autoCommit = autoCommit;
+		return this.autoCommit;
 	}
 
 	public boolean persistMetaModel(MetaModel<Class<?>> metaModel) {
@@ -70,7 +71,6 @@ public class CrudOperations implements OrmRepository<Object> {
 	@Override
 	public Optional<List<Object>> findAll(Class<?> clazz) {
 		try {
-			List<Object> objects = new LinkedList<Object>();
 			List<Field> fields = Arrays.asList(clazz.getDeclaredFields());
 			for (Field field : fields) {
 				field.setAccessible(true);
@@ -83,15 +83,15 @@ public class CrudOperations implements OrmRepository<Object> {
 			ResultSet rs;
 
 			if ((rs = stmt.executeQuery(sql)) != null) {
-				ResultSetMetaData rsmd = rs.getMetaData();
-				int columnCount = rsmd.getColumnCount();
+//				ResultSetMetaData rsmd = rs.getMetaData();
+//				int columnCount = rsmd.getColumnCount();
 
 				while (rs.next()) {
 					Object newObject = clazz.getConstructor().newInstance();
 					for (Field field : fields) {
 						Column col = field.getAnnotation(Column.class);
 						Id id = field.getAnnotation(Id.class);
-						JoinColumn fk = field.getAnnotation(JoinColumn.class);
+//						JoinColumn fk = field.getAnnotation(JoinColumn.class);
 						String name;
 
 						if (id != null) {
@@ -127,33 +127,26 @@ public class CrudOperations implements OrmRepository<Object> {
 			return Optional.of(list);
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (InstantiationException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (IllegalAccessException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (IllegalArgumentException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (InvocationTargetException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (NoSuchMethodException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (SecurityException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		}
 
 	}
@@ -171,9 +164,9 @@ public class CrudOperations implements OrmRepository<Object> {
 			Statement stmt = conn.createStatement();
 			MetaModel<Class<?>> metaModel = MetaModel.of(clazz);
 			String sql = qBuild.findByQuery(metaModel);
-			List<String> query = new ArrayList<String>();
+			List<String> query = new ArrayList<>();
 			for (int i = 0; i < cols.size(); i++) {
-				if (cols.get(i) == "id") {
+				if (cols.get(i).equals("id")) {
 					query.add(cols.get(i) + " = " + cons.get(i));
 				} else if (metaModel.getColumn(cols.get(i)) != null
 						&& metaModel.getColumn(cols.get(i)).getType() == String.class) {
@@ -188,14 +181,13 @@ public class CrudOperations implements OrmRepository<Object> {
 
 			if ((rs = stmt.executeQuery(sql)) != null) {
 				ResultSetMetaData rsmd = rs.getMetaData();
-				int columnCount = rsmd.getColumnCount();
 
 				while (rs.next()) {
 					Object newObject = clazz.getConstructor().newInstance();
 					for (Field field : fields) {
 						Column col = field.getAnnotation(Column.class);
 						Id id = field.getAnnotation(Id.class);
-						JoinColumn fk = field.getAnnotation(JoinColumn.class);
+//						JoinColumn fk = field.getAnnotation(JoinColumn.class);
 						String name;
 
 						if (id != null) {
@@ -229,33 +221,26 @@ public class CrudOperations implements OrmRepository<Object> {
 			return Optional.of(list);
 
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (InstantiationException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (IllegalAccessException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (IllegalArgumentException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (InvocationTargetException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (NoSuchMethodException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		} catch (SecurityException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-			return null;
+			return Optional.empty();
 		}
 
 	}

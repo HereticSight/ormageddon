@@ -88,13 +88,15 @@ public class Configuration {
 		if (!crudOps.getAutoCommit()) {
 			crudOps.beginTransaction();
 		}
-		return this.autoCommit = autoCommit;
+		this.autoCommit = autoCommit;
+		return this.autoCommit;
 	}
 	
 	public boolean disableAutoCommit() {
 		crudOps.setAutoCommit(false);
 		crudOps.beginTransaction();
-		return this.autoCommit = false;
+		this.autoCommit = false;
+		return this.autoCommit;
 	}
 	
 	public boolean getAutoCommit() {
