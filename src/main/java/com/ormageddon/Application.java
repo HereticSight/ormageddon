@@ -54,5 +54,8 @@ public class Application {
 		System.out.println(config.getListObjectFromDB(Home.class));
 		System.out.println(config.getListObjectFromDB(testUser4.getClass(), "username", "brody"));
 		System.out.println(config.getListObjectFromDB(User.class, "username", "mody"));
+		
+		
+		String word = "hello";
 	}
 }
